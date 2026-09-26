@@ -45,16 +45,9 @@ app.post('/chat', async (c) => {
         3. ユーザーがサッカー選手以外を考えていると判断し、ツッコミを入れてゲームを中断する (reject_non_player)
         4. 質問を繰り返しても一向に見当がつかない場合、降参してゲームを終了する (give_up)`,
 
-        // ★ Toolの定義 (Google検索 + 3つの関数)
+        // ★ Toolの定義 (Google検索 + 4つの関数)
         tools: [
-          { 
-            googleSearchRetrieval: {
-              dynamicRetrievalConfig: {
-                mode: DynamicRetrievalConfigMode.MODE_DYNAMIC,
-                dynamicThreshold: 0.6 // 0.0〜1.0: 値が高いほど、AIが「本当に必要なときだけ」検索するようになり、コストを抑えられます。
-              }
-            } 
-          },
+          { googleSearch: {} },
           {
           functionDeclarations: [
             {

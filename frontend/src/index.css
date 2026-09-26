@@ -161,10 +161,16 @@ body::before {
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
+/* --- ボタンが非活性(disabled)になった時の即時反映 --- */
 .btn:disabled {
-  opacity: 0.6;
+  /* 状態変化時のアニメーションを強制的に無効化し、瞬時に切り替える */
+  transition: none !important; 
+  
+  /* 以下は一般的なdisabledの見た目（既存のCSSがあればそれに合わせてください） */
+  opacity: 0.6; 
   cursor: not-allowed;
-  transform: none !important;
+  transform: none !important; /* 押し込みアクションなどを無効化 */
+  pointer-events: none; /* ホバーエフェクトなどを無効化 */
   box-shadow: none !important;
 }
 

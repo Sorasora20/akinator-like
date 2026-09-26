@@ -111,7 +111,8 @@ app.post('/chat', async (c) => {
           functionCallingConfig: {
             mode: FunctionCallingConfigMode.ANY,
             allowedFunctionNames: ['ask_question', 'make_guess', 'reject_non_player', 'give_up']
-          }
+          },
+          includeServerSideToolInvocations: true
         }
       }
     })

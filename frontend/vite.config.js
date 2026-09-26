@@ -3,11 +3,15 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/akinator/',
   plugins: [react()],
   server: {
     port: 8081,
     proxy: {
-      '/chat': 'http://localhost:8080'
+      '/akinator/chat': {
+        target: 'http://localhost:8080',
+        rewrite: (path) => path.replace(/^\/akinator\/chat/, '/chat')
+      }
     }
   }
 })

@@ -3,6 +3,7 @@ import { CheckCircle2, XCircle, HelpCircle, ThumbsUp, ThumbsDown, RotateCcw } fr
 
 function App() {
   const [displayHistory, setDisplayHistory] = useState([]); // 表示用の質問＆回答ペア
+  const [internalSearchLogs, setInternalSearchLogs] = useState([]); // バックエンドから返ってきた検索結果の履歴
   const [confidence, setConfidence] = useState(0); // AIの自信度 (0-100)
   const [loading, setLoading] = useState(false);
   const [gameState, setGameState] = useState('start'); // 'start', 'playing', 'guessed', 'rejected', 'error'
@@ -22,6 +23,7 @@ function App() {
     setLoading(true);
 
     let currentDisplayHistory = isNewGame ? [] : [...displayHistory];
+    let currentSearchLogs = isNewGame ? [] : [...internalSearchLogs];
 
     // 回答を表示用履歴に追加
     if (!isNewGame) {
@@ -40,7 +42,11 @@ function App() {
     } else {
       const pastQuestions = currentDisplayHistory.map((item, i) => `${i + 1}. Q: ${item.q} (A: ${item.a})`).join('\n');
       
-      prompt = `
+      const searchSection = currentSearchLogs.length > 0 
+        ? `\n【過去の内部検索とその結果】\n${currentSearchLogs.join('\n\n')}\n` 
+        : '';
+
+      prompt = `${searchSection}
 【これまでの質疑応答リスト（※重複した質問は絶対に避けること）】
 ${pastQuestions}
 
@@ -65,6 +71,11 @@ AIの質問: ${currentQuestion}
       const data = await res.json();
 
       if (res.ok) {
+        if (data.search_logs && data.search_logs.length > 0) {
+          currentSearchLogs = [...currentSearchLogs, ...data.search_logs];
+          setInternalSearchLogs(currentSearchLogs);
+        }
+
         if (data.action === 'ask_question') {
           setCurrentQuestion(data.question);
           if (data.confidence !== undefined) setConfidence(data.confidence);
@@ -201,6 +212,7 @@ AIの質問: ${currentQuestion}
           <button
             className="btn btn-yes"
             onClick={startGame}
+            disabled={loading}
           >
             <CheckCircle2 size={18} />
             <span>正解！(最初から)</span>
@@ -208,6 +220,7 @@ AIの質問: ${currentQuestion}
           <button
             className="btn btn-no"
             onClick={() => handleTurn('いいえ、違います。質問を続けてください。')}
+            disabled={loading}
           >
             <XCircle size={18} />
             <span>違うよ(推測再開)</span>
@@ -220,6 +233,7 @@ AIの質問: ${currentQuestion}
           <button
             className="btn btn-primary"
             onClick={startGame}
+            disabled={loading}
           >
             <RotateCcw size={18} />
             <span>最初からやり直す</span>

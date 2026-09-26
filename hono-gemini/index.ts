@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { GoogleGenAI, Type, FunctionCallingConfigMode } from '@google/genai'
+import { GoogleGenAI, Type, FunctionCallingConfigMode, DynamicRetrievalConfigMode } from '@google/genai'
 import 'dotenv/config'
 
 const app = new Hono()
@@ -33,25 +33,48 @@ app.post('/chat', async (c) => {
         - 過去に着けていた背番号や、特定のライバル選手との関係
         
         ユーザーは「はい」「いいえ」「分からない」「たぶんそう」「たぶん違う」の5択で答えます。
-        ユーザは質問に間違った回答をする可能性もあるため、ある程度の柔軟性を持って推測してください。
+        ユーザは質問に間違った回答をする可能性もあるため、柔軟に推測してください。
+        
+        【重要】
+        あなたは毎ターン、ユーザーの回答から「確定した事実」や「推測されるプロファイル」を抽出し、JSONとして管理・更新しなければなりません。
+        これにより、会話が長くなっても以前の情報を忘れずに鋭い質問ができます。
         
         提供されたツールを使用して、以下のいずれかのアクションを必ず実行してください。
         1. 選手を絞り込むための質問を一つする (ask_question)
         2. 選手が特定できたので推測する (make_guess)
-        3. ユーザーがサッカー選手以外を考えていると判断し、ツッコミを入れてゲームを中断する (reject_non_player)`,
+        3. ユーザーがサッカー選手以外を考えていると判断し、ツッコミを入れてゲームを中断する (reject_non_player)
+        4. 質問を繰り返しても一向に見当がつかない場合、降参してゲームを終了する (give_up)`,
 
-        // ★ 3つのToolを定義
-        tools: [{
+        // ★ Toolの定義 (Google検索 + 3つの関数)
+        tools: [
+          { 
+            googleSearchRetrieval: {
+              dynamicRetrievalConfig: {
+                mode: DynamicRetrievalConfigMode.MODE_DYNAMIC,
+                dynamicThreshold: 0.6 // 0.0〜1.0: 値が高いほど、AIが「本当に必要なときだけ」検索するようになり、コストを抑えられます。
+              }
+            } 
+          },
+          {
           functionDeclarations: [
             {
               name: 'ask_question',
-              description: 'ユーザーに「はい/いいえ」等で答えられる質問をして、対象のサッカー選手を絞り込みます。',
+              description: 'ユーザーに質問をして、対象のサッカー選手を絞り込みます。同時に、これまでのプロファイルを更新します。',
               parameters: {
                 type: Type.OBJECT,
                 properties: {
-                  question: { type: Type.STRING, description: 'ユーザーへの質問文（余計な文章は含めない）' }
+                  question: { type: Type.STRING, description: 'ユーザーへの質問文（余計な文章は含めない）' },
+                  confirmed_facts: { 
+                    type: Type.ARRAY, 
+                    items: { type: Type.STRING }, 
+                    description: 'これまでの回答から確定・推測された選手の特徴リスト（例: ["日本人", "DFではない", "セリエA経験あり"]）。毎ターン必ず最新状態に更新してください。' 
+                  },
+                  confidence_score: {
+                    type: Type.INTEGER,
+                    description: '現時点でターゲットを絞り込めているかの自信度 (0から100の整数)。序盤は低く、情報が揃うにつれて高くしてください。'
+                  }
                 },
-                required: ['question']
+                required: ['question', 'confirmed_facts', 'confidence_score']
               }
             },
             {
@@ -75,6 +98,17 @@ app.post('/chat', async (c) => {
                 },
                 required: ['reason']
               }
+            },
+            {
+              name: 'give_up',
+              description: '質問を繰り返しても対象が全く特定できない場合、降参してゲームを終了します。',
+              parameters: {
+                type: Type.OBJECT,
+                properties: {
+                  message: { type: Type.STRING, description: '降参する際のユーザーへの謝罪メッセージ（例: 「うーん、全くわかりません！私の負けです！」）' }
+                },
+                required: ['message']
+              }
             }
           ]
         }],
@@ -83,7 +117,7 @@ app.post('/chat', async (c) => {
         toolConfig: {
           functionCallingConfig: {
             mode: FunctionCallingConfigMode.ANY,
-            allowedFunctionNames: ['ask_question', 'make_guess', 'reject_non_player']
+            allowedFunctionNames: ['ask_question', 'make_guess', 'reject_non_player', 'give_up']
           }
         }
       }
@@ -101,13 +135,16 @@ app.post('/chat', async (c) => {
 
       // 呼び出されたTool名によって、フロントエンドに返すJSONの形を変える
       if (name === 'ask_question') {
-        return c.json({ action: 'ask_question', question: args.question })
+        return c.json({ action: 'ask_question', question: args.question, confirmed_facts: args.confirmed_facts || [], confidence: args.confidence_score || 0 })
 
       } else if (name === 'make_guess') {
         return c.json({ action: 'make_guess', guess: args.player_name })
 
       } else if (name === 'reject_non_player') {
         return c.json({ action: 'rejected', reason: args.reason })
+
+      } else if (name === 'give_up') {
+        return c.json({ action: 'given_up', reason: args.message })
       }
     }
 

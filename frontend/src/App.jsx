@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { CheckCircle2, XCircle, HelpCircle, ThumbsUp, ThumbsDown, RotateCcw } from 'lucide-react';
 
 function App() {
-  const [history, setHistory] = useState([]); // バックエンド用履歴
   const [displayHistory, setDisplayHistory] = useState([]); // 表示用の質問＆回答ペア
+  const [confirmedFacts, setConfirmedFacts] = useState([]); // AIが抽出した事実リスト
+  const [confidence, setConfidence] = useState(0); // AIの自信度 (0-100)
   const [loading, setLoading] = useState(false);
   const [gameState, setGameState] = useState('start'); // 'start', 'playing', 'guessed', 'rejected', 'error'
   const [currentQuestion, setCurrentQuestion] = useState('');
@@ -18,25 +19,48 @@ function App() {
     { text: "たぶん違う", class: "btn-prob-no", icon: <ThumbsDown size={18} /> },
   ];
 
-  const handleTurn = async (userText, currentHistory) => {
+  const handleTurn = async (userText) => {
     setLoading(true);
+
+    let currentDisplayHistory = [...displayHistory];
 
     // 回答を表示用履歴に追加 (ユーザーの入力が選択肢の場合のみ)
     if (gameState === 'playing' && userText !== 'いいえ、違います。質問を続けてください。') {
-      setDisplayHistory(prev => [...prev, { q: currentQuestion, a: userText }]);
+      currentDisplayHistory.push({ q: currentQuestion, a: userText });
+      setDisplayHistory(currentDisplayHistory);
     }
 
-    const newHistory = [
-      ...currentHistory,
-      { role: 'user', parts: [{ text: userText }] }
+    // ★ コンテキスト希釈を防ぐための「1ターン圧縮プロンプト」を作成
+    let prompt = '';
+    if (currentDisplayHistory.length === 0 && gameState === 'start') {
+      prompt = "ゲームスタート！サッカー選手を1人思い浮かべてください。最初の質問をお願いします。";
+    } else {
+      const pastQuestions = currentDisplayHistory.map((item, i) => `${i + 1}. Q: ${item.q} (A: ${item.a})`).join('\n');
+      const factsStr = confirmedFacts.length > 0 ? confirmedFacts.map(f => `・${f}`).join('\n') : 'なし';
+      
+      prompt = `
+【現在のプロファイル（確定・推測された事実）】
+${factsStr}
+
+【過去の質疑応答リスト（※重複した質問は絶対に避けること）】
+${pastQuestions}
+
+【直前のやり取り】
+AIの質問: ${currentQuestion}
+ユーザーの回答: ${userText}
+
+上記を踏まえて、プロファイルを更新し、対象を絞り込むための「次の質問」をするか、「推測」を行ってください。`;
+    }
+
+    const payloadHistory = [
+      { role: 'user', parts: [{ text: prompt }] }
     ];
-    setHistory(newHistory);
 
     try {
       const res = await fetch('/akinator/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ history: newHistory }),
+        body: JSON.stringify({ history: payloadHistory }),
       });
 
       const data = await res.json();
@@ -44,19 +68,22 @@ function App() {
       if (res.ok) {
         if (data.action === 'ask_question') {
           setCurrentQuestion(data.question);
+          if (data.confirmed_facts) setConfirmedFacts(data.confirmed_facts);
+          if (data.confidence !== undefined) setConfidence(data.confidence);
           setGameState('playing');
         } else if (data.action === 'make_guess') {
           setCurrentGuess(data.guess);
+          setConfidence(100);
           setGameState('guessed');
         } else if (data.action === 'rejected') {
           setCurrentQuestion(data.reason);
+          setConfidence(0);
           setGameState('rejected');
+        } else if (data.action === 'given_up') {
+          setCurrentQuestion(data.reason);
+          setConfidence(0);
+          setGameState('given_up');
         }
-
-        setHistory((prev) => [
-          ...prev,
-          { role: 'model', parts: [{ text: JSON.stringify(data) }] }
-        ]);
       } else {
         setCurrentQuestion(`エラー: ${data.error}`);
         setGameState('error');
@@ -70,14 +97,15 @@ function App() {
   };
 
   const startGame = () => {
-    const initialText = "ゲームスタート！サッカー選手を1人思い浮かべてください。";
-    setHistory([]);
+    setConfirmedFacts([]);
     setDisplayHistory([]);
-    handleTurn(initialText, []);
+    setConfidence(0);
+    handleTurn("ゲームスタート！サッカー選手を1人思い浮かべてください。");
   };
 
   const getAvatar = () => {
     if (gameState === 'start') return '🔮';
+    if (gameState === 'given_up') return '🏳️';
     if (gameState === 'error' || gameState === 'rejected') return '😵';
     if (gameState === 'guessed') return '💡';
     if (loading) return '🤔';
@@ -97,6 +125,21 @@ function App() {
       <div className="avatar-container">{getAvatar()}</div>
       
       <h1 className="title">サッカー選手アキネーター</h1>
+
+      {gameState !== 'start' && (
+        <div className="confidence-container">
+          <div className="confidence-header">
+            <span>AIの特定自信度</span>
+            <span>{confidence}%</span>
+          </div>
+          <div className="confidence-bar-bg">
+            <div 
+              className="confidence-bar-fill" 
+              style={{ width: `${confidence}%` }}
+            ></div>
+          </div>
+        </div>
+      )}
 
       {gameState === 'start' && (
         <button className="btn btn-primary" onClick={startGame} disabled={loading}>
@@ -129,7 +172,7 @@ function App() {
               <button
                 key={opt.text}
                 className={`btn ${opt.class}`}
-                onClick={() => handleTurn(opt.text, history)}
+                onClick={() => handleTurn(opt.text)}
                 disabled={loading}
               >
                 {opt.icon}
@@ -164,7 +207,7 @@ function App() {
           </button>
           <button
             className="btn btn-no"
-            onClick={() => handleTurn('いいえ、違います。質問を続けてください。', history)}
+            onClick={() => handleTurn('いいえ、違います。質問を続けてください。')}
           >
             <XCircle size={18} />
             <span>違うよ(推測再開)</span>
@@ -172,7 +215,7 @@ function App() {
         </div>
       )}
 
-      {(gameState === 'rejected' || gameState === 'error') && (
+      {(gameState === 'rejected' || gameState === 'error' || gameState === 'given_up') && (
         <div className="options-row">
           <button
             className="btn btn-primary"

@@ -125,8 +125,8 @@ AIの質問: ${currentQuestion}
       <div className="avatar-container">{getAvatar()}</div>
       
       {gameState === 'start' ?
-        <></> :
-        <h1 className="title">サッカー選手アキネーター</h1>
+        <h1 className="title">サッカー選手アキネーター</h1> :
+        <></>
       }
 
       {gameState !== 'start' && (

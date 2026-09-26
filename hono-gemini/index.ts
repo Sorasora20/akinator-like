@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { GoogleGenAI } from '@google/genai'
+import { GoogleGenAI, Type, FunctionCallingConfigMode } from '@google/genai'
 import 'dotenv/config'
 
 const app = new Hono()
@@ -25,13 +25,20 @@ app.post('/chat', async (c) => {
       contents: history,
       config: {
         systemInstruction: `
-        あなたは架空または実在のサッカー選手を当てるアキネーターです。
+        あなたは架空または実在のサッカー選手を当てるエンターテイナーなアキネーターです。
+        ユーザーを楽しませるため、単なる事実（国籍やポジション）だけでなく、以下のような多様で面白い視点の質問を積極的に取り入れてください。
+        - 特徴的なプレースタイルや有名な必殺技・ゴールパフォーマンス
+        - 印象的な髪型やタトゥー、ファッションなどの外見的特徴
+        - メディアでの発言、有名なエピソード、プライベートでの噂や事件
+        - 過去に着けていた背番号や、特定のライバル選手との関係
+        
         ユーザーは「はい」「いいえ」「分からない」「たぶんそう」「たぶん違う」の5択で答えます。
-        ユーザは質問に間違った回答をする可能性があります。そのため、ある程度の柔軟性を持って回答してください。
+        ユーザは質問に間違った回答をする可能性もあるため、ある程度の柔軟性を持って推測してください。
+        
         提供されたツールを使用して、以下のいずれかのアクションを必ず実行してください。
         1. 選手を絞り込むための質問を一つする (ask_question)
         2. 選手が特定できたので推測する (make_guess)
-        3. ユーザーがサッカー選手以外を考えていると判断し、ゲームを中断する (reject_non_player)`,
+        3. ユーザーがサッカー選手以外を考えていると判断し、ツッコミを入れてゲームを中断する (reject_non_player)`,
 
         // ★ 3つのToolを定義
         tools: [{
@@ -40,9 +47,9 @@ app.post('/chat', async (c) => {
               name: 'ask_question',
               description: 'ユーザーに「はい/いいえ」等で答えられる質問をして、対象のサッカー選手を絞り込みます。',
               parameters: {
-                type: 'OBJECT',
+                type: Type.OBJECT,
                 properties: {
-                  question: { type: 'STRING', description: 'ユーザーへの質問文（余計な文章は含めない）' }
+                  question: { type: Type.STRING, description: 'ユーザーへの質問文（余計な文章は含めない）' }
                 },
                 required: ['question']
               }
@@ -51,9 +58,9 @@ app.post('/chat', async (c) => {
               name: 'make_guess',
               description: '対象のサッカー選手が特定できた場合に、その名前を推測します。',
               parameters: {
-                type: 'OBJECT',
+                type: Type.OBJECT,
                 properties: {
-                  player_name: { type: 'STRING', description: '推測したサッカー選手の名前（余計な文章は含めない）' }
+                  player_name: { type: Type.STRING, description: '推測したサッカー選手の名前（余計な文章は含めない）' }
                 },
                 required: ['player_name']
               }
@@ -62,9 +69,9 @@ app.post('/chat', async (c) => {
               name: 'reject_non_player',
               description: 'ユーザーがサッカー選手以外の人物や物体を思い浮かべていると判断した場合に呼び出します。',
               parameters: {
-                type: 'OBJECT',
+                type: Type.OBJECT,
                 properties: {
-                  reason: { type: 'STRING', description: 'なぜサッカー選手ではないと判断したかの理由や、ユーザーへのツッコミ' }
+                  reason: { type: Type.STRING, description: 'なぜサッカー選手ではないと判断したかの理由や、ユーザーへのツッコミ' }
                 },
                 required: ['reason']
               }
@@ -75,7 +82,7 @@ app.post('/chat', async (c) => {
         // ★ AIに「必ず関数を呼び出す」ことを強制する設定
         toolConfig: {
           functionCallingConfig: {
-            mode: 'ANY',
+            mode: FunctionCallingConfigMode.ANY,
             allowedFunctionNames: ['ask_question', 'make_guess', 'reject_non_player']
           }
         }

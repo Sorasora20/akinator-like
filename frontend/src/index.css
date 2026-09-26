@@ -22,10 +22,15 @@
   padding: 0;
 }
 
+html {
+  background-color: var(--bg-gradient-start);
+}
+
 body {
   font-family: 'Outfit', 'Noto Sans JP', sans-serif;
   color: var(--text-main);
   margin: 0;
+  background-color: var(--bg-gradient-start);
 }
 
 body::before {
@@ -33,8 +38,9 @@ body::before {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
   z-index: -1;
 }

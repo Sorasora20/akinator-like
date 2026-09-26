@@ -125,7 +125,7 @@ app.get('*', serveStatic({ path: '../frontend/dist/index.html' }))
 
 serve({
   fetch: app.fetch,
-  port: 3000,
+  port: 8080,
 }, (info) => {
   console.log(`Agent Akinator Server is running on http://localhost:${info.port}`)
 })

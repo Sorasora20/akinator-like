@@ -3,7 +3,6 @@ import { CheckCircle2, XCircle, HelpCircle, ThumbsUp, ThumbsDown, RotateCcw } fr
 
 function App() {
   const [displayHistory, setDisplayHistory] = useState([]); // 表示用の質問＆回答ペア
-  const [confirmedFacts, setConfirmedFacts] = useState([]); // AIが抽出した事実リスト
   const [confidence, setConfidence] = useState(0); // AIの自信度 (0-100)
   const [loading, setLoading] = useState(false);
   const [gameState, setGameState] = useState('start'); // 'start', 'playing', 'guessed', 'rejected', 'error'
@@ -36,20 +35,16 @@ function App() {
       prompt = "ゲームスタート！サッカー選手を1人思い浮かべてください。最初の質問をお願いします。";
     } else {
       const pastQuestions = currentDisplayHistory.map((item, i) => `${i + 1}. Q: ${item.q} (A: ${item.a})`).join('\n');
-      const factsStr = confirmedFacts.length > 0 ? confirmedFacts.map(f => `・${f}`).join('\n') : 'なし';
       
       prompt = `
-【現在のプロファイル（確定・推測された事実）】
-${factsStr}
-
-【過去の質疑応答リスト（※重複した質問は絶対に避けること）】
+【これまでの質疑応答リスト（※重複した質問は絶対に避けること）】
 ${pastQuestions}
 
 【直前のやり取り】
 AIの質問: ${currentQuestion}
 ユーザーの回答: ${userText}
 
-上記を踏まえて、プロファイルを更新し、対象を絞り込むための「次の質問」をするか、「推測」を行ってください。`;
+上記を踏まえて、対象を絞り込むための「次の鋭い質問」をするか、「推測」を行ってください。`;
     }
 
     const payloadHistory = [
@@ -68,7 +63,6 @@ AIの質問: ${currentQuestion}
       if (res.ok) {
         if (data.action === 'ask_question') {
           setCurrentQuestion(data.question);
-          if (data.confirmed_facts) setConfirmedFacts(data.confirmed_facts);
           if (data.confidence !== undefined) setConfidence(data.confidence);
           setGameState('playing');
         } else if (data.action === 'make_guess') {
@@ -97,7 +91,6 @@ AIの質問: ${currentQuestion}
   };
 
   const startGame = () => {
-    setConfirmedFacts([]);
     setDisplayHistory([]);
     setConfidence(0);
     handleTurn("ゲームスタート！サッカー選手を1人思い浮かべてください。");

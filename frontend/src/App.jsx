@@ -124,7 +124,10 @@ AIの質問: ${currentQuestion}
       <div className="app-container">
       <div className="avatar-container">{getAvatar()}</div>
       
-      <h1 className="title">サッカー選手アキネーター</h1>
+      {gameState === 'start' ?
+        <></> :
+        <h1 className="title">サッカー選手アキネーター</h1>
+      }
 
       {gameState !== 'start' && (
         <div className="confidence-container">

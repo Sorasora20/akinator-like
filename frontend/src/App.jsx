@@ -24,9 +24,13 @@ function App() {
 
     let currentDisplayHistory = isNewGame ? [] : [...displayHistory];
 
-    // 回答を表示用履歴に追加 (ユーザーの入力が選択肢の場合のみ)
-    if (gameState === 'playing' && userText !== 'いいえ、違います。質問を続けてください。') {
-      currentDisplayHistory.push({ q: currentQuestion, a: userText });
+    // 回答を表示用履歴に追加
+    if (!isNewGame) {
+      if (gameState === 'playing') {
+        currentDisplayHistory.push({ q: currentQuestion, a: userText });
+      } else if (gameState === 'guessed') {
+        currentDisplayHistory.push({ q: `推測: ${currentGuess} ですね？`, a: userText });
+      }
       setDisplayHistory(currentDisplayHistory);
     }
 

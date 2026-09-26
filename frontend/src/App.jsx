@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { CheckCircle2, XCircle, HelpCircle, ThumbsUp, ThumbsDown, RotateCcw } from 'lucide-react';
 
 function App() {
@@ -10,6 +10,8 @@ function App() {
   const [currentQuestion, setCurrentQuestion] = useState('');
   const [currentGuess, setCurrentGuess] = useState('');
   
+  const isProcessing = useRef(false);
+
   // 指定された5つの選択肢とその色クラスとアイコン
   const options = [
     { text: "はい", class: "btn-yes", icon: <CheckCircle2 size={18} /> },
@@ -20,6 +22,8 @@ function App() {
   ];
 
   const handleTurn = async (userText, isNewGame = false) => {
+    if (isProcessing.current) return;
+    isProcessing.current = true;
     setLoading(true);
 
     let currentDisplayHistory = isNewGame ? [] : [...displayHistory];
@@ -102,6 +106,7 @@ AIの質問: ${currentQuestion}
       setGameState('error');
     } finally {
       setLoading(false);
+      isProcessing.current = false;
     }
   };
 

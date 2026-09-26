@@ -19,10 +19,10 @@ function App() {
     { text: "たぶん違う", class: "btn-prob-no", icon: <ThumbsDown size={18} /> },
   ];
 
-  const handleTurn = async (userText) => {
+  const handleTurn = async (userText, isNewGame = false) => {
     setLoading(true);
 
-    let currentDisplayHistory = [...displayHistory];
+    let currentDisplayHistory = isNewGame ? [] : [...displayHistory];
 
     // 回答を表示用履歴に追加 (ユーザーの入力が選択肢の場合のみ)
     if (gameState === 'playing' && userText !== 'いいえ、違います。質問を続けてください。') {
@@ -96,7 +96,7 @@ AIの質問: ${currentQuestion}
     setDisplayHistory([]);
     setConfidence(0);
     setUsedSearch(false);
-    handleTurn("ゲームスタート！サッカー選手を1人思い浮かべてください。");
+    handleTurn("ゲームスタート！サッカー選手を1人思い浮かべてください。", true);
   };
 
   const getAvatar = () => {

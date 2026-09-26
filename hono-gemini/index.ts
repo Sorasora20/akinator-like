@@ -20,6 +20,36 @@ app.post('/chat', async (c) => {
       return c.json({ error: 'history is required' }, 400)
     }
 
+    const promptText = history[history.length - 1].parts[0].text;
+    const questionCount = (promptText.match(/Q:/g) || []).length;
+    
+    // === ステップ1: Google検索による情報収集 (コスト節約のため条件付き発動) ===
+    let searchResultText = "（今回は検索を行っていません）";
+    let used_google_search = false;
+    
+    // 3問目以降、かつ2回に1回の頻度で検索を発動する
+    if (questionCount >= 3 && questionCount % 2 === 1) {
+      try {
+        const searchResponse = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: promptText + '\n\n（※この情報を元に、関連する最新のサッカー選手をGoogleで検索し、その特徴を抽出してください）',
+          config: {
+            tools: [{ googleSearch: {} }]
+          }
+        });
+        searchResultText = searchResponse.text || "（検索結果なし）";
+        const groundingMetadata = searchResponse.candidates?.[0]?.groundingMetadata;
+        used_google_search = !!(groundingMetadata?.webSearchQueries && groundingMetadata.webSearchQueries.length > 0);
+        
+        if (used_google_search) {
+          console.log('🔍 [Backend] Google Search Triggered! Queries:', groundingMetadata?.webSearchQueries);
+        }
+      } catch (e) {
+        console.log('Search step failed', e);
+      }
+    }
+
+    // === ステップ2: アキネーターとしての回答生成 ===
     const response = await ai.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: history,
@@ -35,17 +65,18 @@ app.post('/chat', async (c) => {
         ユーザーは「はい」「いいえ」「分からない」「たぶんそう」「たぶん違う」の5択で答えます。
         ユーザは質問に間違った回答をする可能性もあるため、柔軟に推測してください。
         
+        【最新のGoogle検索結果】
+        ${searchResultText}
+        ※上記の検索結果も参考にしながら、ターゲットを絞り込むための最適な質問を考えてください。
+        
         提供されたツールを使用して、以下のいずれかのアクションを必ず実行してください。
         1. 選手を絞り込むための質問を一つする (ask_question)
         2. 選手が特定できたので推測する (make_guess)
         3. ユーザーがサッカー選手以外を考えていると判断し、ツッコミを入れてゲームを中断する (reject_non_player)
         4. 質問を繰り返しても一向に見当がつかない場合、降参してゲームを終了する (give_up)`,
 
-        // ★ Toolの定義 (Google検索 + 4つの関数)
-        tools: [
-          // Google検索を「無条件で必ず」発動させる設定
-          { googleSearch: {} },
-          {
+        // ★ Toolの定義 (4つの関数のみ)
+        tools: [{
           functionDeclarations: [
             {
               name: 'ask_question',
@@ -98,10 +129,11 @@ app.post('/chat', async (c) => {
           ]
         }],
 
-        // ★ AIに関数呼び出しとGoogle検索を許可する設定
+        // ★ AIに関数呼び出しを許可する設定
         toolConfig: {
           functionCallingConfig: {
-            mode: FunctionCallingConfigMode.AUTO,
+            mode: FunctionCallingConfigMode.ANY,
+            allowedFunctionNames: ['ask_question', 'make_guess', 'reject_non_player', 'give_up']
           },
           includeServerSideToolInvocations: true
         }
@@ -111,12 +143,6 @@ app.post('/chat', async (c) => {
     // === 関数呼び出し（Function Calling）の結果を処理 ===
     const functionCalls = response.functionCalls
 
-    // Google検索が発動したか確認してログに出力
-    const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
-    const used_google_search = !!(groundingMetadata && groundingMetadata.webSearchQueries && groundingMetadata.webSearchQueries.length > 0);
-    if (used_google_search) {
-      console.log('🔍 [Backend] Google Search Triggered! Queries:', groundingMetadata.webSearchQueries);
-    }
     // AIが関数を呼び出したかチェック
     if (functionCalls && functionCalls.length > 0) {
       // 最初に呼び出された関数を取得

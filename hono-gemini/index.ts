@@ -44,7 +44,7 @@ app.post('/chat', async (c) => {
         // ★ Toolの定義 (Google検索 + 4つの関数)
         tools: [
           // @ts-ignore: SDKの型にはありませんが、Gemini APIではdynamicRetrievalConfigがサポートされています
-          { googleSearch: { dynamicRetrievalConfig: { mode: 'MODE_DYNAMIC', dynamicThreshold: 0.6 } } },
+          { googleSearch: { dynamicRetrievalConfig: { mode: 'MODE_DYNAMIC', dynamicThreshold: 0.1 } } },
           {
           functionDeclarations: [
             {

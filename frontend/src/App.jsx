@@ -4,6 +4,7 @@ import { CheckCircle2, XCircle, HelpCircle, ThumbsUp, ThumbsDown, RotateCcw } fr
 function App() {
   const [displayHistory, setDisplayHistory] = useState([]); // 表示用の質問＆回答ペア
   const [confidence, setConfidence] = useState(0); // AIの自信度 (0-100)
+  const [usedSearch, setUsedSearch] = useState(false); // Google検索を使用したか
   const [loading, setLoading] = useState(false);
   const [gameState, setGameState] = useState('start'); // 'start', 'playing', 'guessed', 'rejected', 'error'
   const [currentQuestion, setCurrentQuestion] = useState('');
@@ -61,6 +62,7 @@ AIの質問: ${currentQuestion}
       const data = await res.json();
 
       if (res.ok) {
+        setUsedSearch(!!data.used_google_search);
         if (data.action === 'ask_question') {
           setCurrentQuestion(data.question);
           if (data.confidence !== undefined) setConfidence(data.confidence);
@@ -93,6 +95,7 @@ AIの質問: ${currentQuestion}
   const startGame = () => {
     setDisplayHistory([]);
     setConfidence(0);
+    setUsedSearch(false);
     handleTurn("ゲームスタート！サッカー選手を1人思い浮かべてください。");
   };
 
@@ -134,6 +137,12 @@ AIの質問: ${currentQuestion}
               style={{ width: `${confidence}%` }}
             ></div>
           </div>
+        </div>
+      )}
+
+      {usedSearch && (
+        <div style={{ fontSize: '13px', color: '#10B981', fontWeight: 'bold', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+          <span>🔍</span> Google検索で情報を取得しました
         </div>
       )}
 

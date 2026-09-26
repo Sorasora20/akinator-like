@@ -112,6 +112,12 @@ app.post('/chat', async (c) => {
     // === 関数呼び出し（Function Calling）の結果を処理 ===
     const functionCalls = response.functionCalls
 
+    // Google検索が発動したか確認してログに出力
+    const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+    const used_google_search = !!(groundingMetadata && groundingMetadata.webSearchQueries && groundingMetadata.webSearchQueries.length > 0);
+    if (used_google_search) {
+      console.log('🔍 [Backend] Google Search Triggered! Queries:', groundingMetadata.webSearchQueries);
+    }
     // AIが関数を呼び出したかチェック
     if (functionCalls && functionCalls.length > 0) {
       // 最初に呼び出された関数を取得
@@ -121,16 +127,16 @@ app.post('/chat', async (c) => {
 
       // 呼び出されたTool名によって、フロントエンドに返すJSONの形を変える
       if (name === 'ask_question') {
-        return c.json({ action: 'ask_question', question: args.question, confidence: args.confidence_score || 0 })
+        return c.json({ action: 'ask_question', question: args.question, confidence: args.confidence_score || 0, used_google_search })
 
       } else if (name === 'make_guess') {
-        return c.json({ action: 'make_guess', guess: args.player_name })
+        return c.json({ action: 'make_guess', guess: args.player_name, used_google_search })
 
       } else if (name === 'reject_non_player') {
-        return c.json({ action: 'rejected', reason: args.reason })
+        return c.json({ action: 'rejected', reason: args.reason, used_google_search })
 
       } else if (name === 'give_up') {
-        return c.json({ action: 'given_up', reason: args.message })
+        return c.json({ action: 'given_up', reason: args.message, used_google_search })
       }
     }
 

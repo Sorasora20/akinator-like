@@ -194,7 +194,7 @@ AIの質問: ${currentQuestion}
               <button
                 key={opt.text}
                 className={`btn ${opt.class}`}
-                onClick={() => handleTurn(opt.text, history)}
+                onClick={() => handleTurn(opt.text)}
                 disabled={loading}
               >
                 {opt.icon}

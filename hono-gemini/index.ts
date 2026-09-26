@@ -98,11 +98,10 @@ app.post('/chat', async (c) => {
           ]
         }],
 
-        // ★ AIに「必ず関数を呼び出す」ことを強制する設定
+        // ★ AIに関数呼び出しとGoogle検索を許可する設定
         toolConfig: {
           functionCallingConfig: {
-            mode: FunctionCallingConfigMode.ANY,
-            allowedFunctionNames: ['ask_question', 'make_guess', 'reject_non_player', 'give_up']
+            mode: FunctionCallingConfigMode.AUTO,
           },
           includeServerSideToolInvocations: true
         }

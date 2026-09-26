@@ -22,8 +22,13 @@ function App() {
   ];
 
   const handleTurn = async (userText, isNewGame = false) => {
-    if (isProcessing.current) return;
+    // 1. 同期的に処理をブロック（これで2つ目のクリックは完全に弾かれます）
+    if (isProcessing.current) return; 
+    
+    // 2. ロックをかける
     isProcessing.current = true;
+    
+    // 3. UIの非活性化（反映までほんの少しラグがある）
     setLoading(true);
 
     let currentDisplayHistory = isNewGame ? [] : [...displayHistory];
@@ -106,7 +111,8 @@ AIの質問: ${currentQuestion}
       setGameState('error');
     } finally {
       setLoading(false);
-      isProcessing.current = false;
+      // ★ 追加: 処理が終わったら必ずロックを解除する
+      isProcessing.current = false; 
     }
   };
 

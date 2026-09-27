@@ -162,16 +162,15 @@ body::before {
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 /* --- ボタンが非活性(disabled)になった時の即時反映 --- */
-.btn:disabled {
-  /* 状態変化時のアニメーションを強制的に無効化し、瞬時に切り替える */
+.btn:disabled,
+.btn.is-disabled {
   transition: none !important; 
-  
-  /* 以下は一般的なdisabledの見た目（既存のCSSがあればそれに合わせてください） */
-  opacity: 0.6; 
-  cursor: not-allowed;
-  transform: none !important; /* 押し込みアクションなどを無効化 */
-  pointer-events: none; /* ホバーエフェクトなどを無効化 */
+  opacity: 0.5 !important; 
+  cursor: not-allowed !important;
+  transform: none !important; /* 押し込みアクションを強制的に無効化 */
+  pointer-events: none !important; /* タップを強制的に無効化 */
   box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent !important; /* スマホ特有のタップ時のハイライトを消去 */
 }
 
 /* Specific Buttons */

@@ -193,7 +193,7 @@ AIの質問: ${currentQuestion}
             {options.slice(0, 3).map((opt) => (
               <button
                 key={opt.text}
-                className={`btn ${opt.class}`}
+                className={`btn ${opt.class} ${loading ? 'is-disabled' : ''}`}
                 onClick={() => handleTurn(opt.text)}
                 disabled={loading}
               >
@@ -206,7 +206,7 @@ AIの質問: ${currentQuestion}
             {options.slice(3, 5).map((opt) => (
               <button
                 key={opt.text}
-                className={`btn ${opt.class}`}
+                className={`btn ${opt.class} ${loading ? 'is-disabled' : ''}`}
                 onClick={() => handleTurn(opt.text)}
                 disabled={loading}
               >
